@@ -49,6 +49,12 @@
   /* Transitions */
   --transition-fast: 0.15s ease;
   --transition-normal: 0.25s ease;
+
+  /* ========================================================================
+     BACKGROUND BLUR CONFIGURATION
+     You can change this value anytime (e.g. 0px for sharp, 4px for subtle, 8px for soft, 12px for heavy blur):
+     ======================================================================== */
+  --bg-nature-blur: 5px;
 }
 
 /* ==========================================================================
@@ -91,12 +97,17 @@
 [data-theme="dark"] body::before {
   content: "";
   position: fixed;
-  inset: 0;
+  top: -20px;
+  left: -20px;
+  right: -20px;
+  bottom: -20px;
   background: linear-gradient(180deg, rgba(0, 0, 0, 0.65) 0%, rgba(0, 0, 0, 0.45) 50%, rgba(0, 0, 0, 0.85) 100%),
               url("../assets/dark_nature_bg.jpg") no-repeat center center / cover;
   z-index: 0;
   pointer-events: none;
   opacity: 0.92;
+  filter: blur(var(--bg-nature-blur));
+  transform: scale(1.04);
 }
 
 /* Dark Mode Glassmorphism Overrides */
