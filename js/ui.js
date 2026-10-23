@@ -415,7 +415,10 @@ export class WeatherUI {
     this.dom.searchDropdown.innerHTML = '';
 
     if (!results || results.length === 0) {
-      this.dom.searchDropdown.innerHTML = '<div class="search-empty">No matching locations found in India.</div>';
+      const emptyDiv = document.createElement('div');
+      emptyDiv.className = 'search-empty';
+      emptyDiv.textContent = 'No matching locations found in India.';
+      this.dom.searchDropdown.appendChild(emptyDiv);
       this.dom.searchDropdown.classList.remove('is-hidden');
       return;
     }
@@ -429,13 +432,27 @@ export class WeatherUI {
 
       const adminStr = [loc.admin1, loc.country].filter(Boolean).join(', ');
 
-      item.innerHTML = `
-        <div class="search-item-info">
-          <span class="search-name">${this.escapeText(loc.name)}</span>
-          <span class="search-sub">${this.escapeText(adminStr)}</span>
-        </div>
-        ${loc.isLocalMatch ? '<span class="search-badge">Verified</span>' : ''}
-      `;
+      const infoDiv = document.createElement('div');
+      infoDiv.className = 'search-item-info';
+
+      const nameSpan = document.createElement('span');
+      nameSpan.className = 'search-name';
+      nameSpan.textContent = loc.name || '';
+
+      const subSpan = document.createElement('span');
+      subSpan.className = 'search-sub';
+      subSpan.textContent = adminStr;
+
+      infoDiv.appendChild(nameSpan);
+      infoDiv.appendChild(subSpan);
+      item.appendChild(infoDiv);
+
+      if (loc.isLocalMatch) {
+        const badgeSpan = document.createElement('span');
+        badgeSpan.className = 'search-badge';
+        badgeSpan.textContent = 'Verified';
+        item.appendChild(badgeSpan);
+      }
 
       item.addEventListener('click', () => {
         this.hideSearchDropdown();
@@ -504,10 +521,16 @@ export class WeatherUI {
     }
   }
 
+  /**
+   * OWASP-compliant HTML string sanitization
+   */
   escapeText(str) {
-    if (!str) return '';
-    const div = document.createElement('div');
-    div.textContent = str;
-    return div.innerHTML;
+    if (str === null || str === undefined) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
   }
 }

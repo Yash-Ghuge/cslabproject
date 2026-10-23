@@ -66,12 +66,26 @@ async function fetchWithTimeout(url, signal = null) {
 }
 
 /**
+ * Validate and sanitize geographic coordinate bounds
+ */
+function sanitizeCoordinate(val, min, max, name) {
+  const num = Number.parseFloat(val);
+  if (!Number.isFinite(num) || num < min || num > max) {
+    throw new Error(`Invalid ${name}: must be a finite number between ${min} and ${max}.`);
+  }
+  return num;
+}
+
+/**
  * Fetch 7-day weather forecast, hourly forecast, and current conditions
  */
 export async function getWeatherData(latitude, longitude, signal = null) {
+  const lat = sanitizeCoordinate(latitude, -90, 90, 'latitude');
+  const lon = sanitizeCoordinate(longitude, -180, 180, 'longitude');
+
   const params = new URLSearchParams({
-    latitude: latitude.toFixed(4),
-    longitude: longitude.toFixed(4),
+    latitude: lat.toFixed(4),
+    longitude: lon.toFixed(4),
     current: [
       'temperature_2m',
       'relative_humidity_2m',
@@ -116,9 +130,12 @@ export async function getWeatherData(latitude, longitude, signal = null) {
  * Fetch air quality and pollutant concentration data
  */
 export async function getAirQualityData(latitude, longitude, signal = null) {
+  const lat = sanitizeCoordinate(latitude, -90, 90, 'latitude');
+  const lon = sanitizeCoordinate(longitude, -180, 180, 'longitude');
+
   const params = new URLSearchParams({
-    latitude: latitude.toFixed(4),
-    longitude: longitude.toFixed(4),
+    latitude: lat.toFixed(4),
+    longitude: lon.toFixed(4),
     current: [
       'us_aqi',
       'european_aqi',
@@ -140,7 +157,10 @@ export async function getAirQualityData(latitude, longitude, signal = null) {
  * Search locations using Open-Meteo Geocoding API with local Indian city augmentation
  */
 export async function searchLocations(query, signal = null) {
-  const normalized = (query || '').trim().toLowerCase();
+  if (typeof query !== 'string') return [];
+  // Strip control characters and cap length to prevent abuse
+  const sanitized = query.replace(/[\x00-\x1F\x7F]/g, '').trim().slice(0, 80);
+  const normalized = sanitized.toLowerCase();
   if (normalized.length < 2) return [];
 
   // Match local Indian database first
@@ -159,7 +179,7 @@ export async function searchLocations(query, signal = null) {
 
   try {
     const params = new URLSearchParams({
-      name: query.trim(),
+      name: sanitized,
       count: '8',
       language: 'en',
       format: 'json'
@@ -205,12 +225,15 @@ export async function searchLocations(query, signal = null) {
  * Find closest curated city or reverse-geocode coordinates
  */
 export async function reverseGeocodeLocation(lat, lon) {
+  const safeLat = sanitizeCoordinate(lat, -90, 90, 'latitude');
+  const safeLon = sanitizeCoordinate(lon, -180, 180, 'longitude');
+
   // Check closest in local database
   let closest = null;
   let minDistance = Infinity;
 
   for (const city of DEFAULT_INDIAN_CITIES) {
-    const dist = Math.hypot(city.lat - lat, city.lon - lon);
+    const dist = Math.hypot(city.lat - safeLat, city.lon - safeLon);
     if (dist < minDistance) {
       minDistance = dist;
       closest = city;

@@ -8,3 +8,18 @@ desktop.ini
 .idea/
 *.swp
 *.swo
+
+# Environment variables & secrets
+.env
+.env.*
+*.env
+*.pem
+*.key
+*.cert
+
+# Node dependencies & logs
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.vercel

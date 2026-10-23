@@ -29,8 +29,8 @@ class WeatherApp {
       },
       weatherData: null,
       airQualityData: null,
-      unit: localStorage.getItem('mausam_unit') || 'C',
-      theme: localStorage.getItem('mausam_theme') || 'dark',
+      unit: localStorage.getItem('mausam_unit') === 'F' ? 'F' : 'C',
+      theme: localStorage.getItem('mausam_theme') === 'light' ? 'light' : 'dark',
       abortController: null,
       isFetching: false
     };
@@ -47,13 +47,29 @@ class WeatherApp {
     this.startLiveClock();
     this.bindEvents();
 
-    // Load saved location if available
+    // Load and validate saved location with strict schema checks
     const savedLoc = localStorage.getItem('mausam_location');
     if (savedLoc) {
       try {
         const parsed = JSON.parse(savedLoc);
-        if (parsed.name && parsed.latitude && parsed.longitude) {
-          this.state.location = parsed;
+        if (
+          parsed &&
+          typeof parsed === 'object' &&
+          typeof parsed.name === 'string' &&
+          Number.isFinite(Number(parsed.latitude)) &&
+          Number.isFinite(Number(parsed.longitude))
+        ) {
+          const lat = Number(parsed.latitude);
+          const lon = Number(parsed.longitude);
+          if (lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180) {
+            this.state.location = {
+              name: String(parsed.name).slice(0, 80),
+              admin1: typeof parsed.admin1 === 'string' ? parsed.admin1.slice(0, 80) : '',
+              country: typeof parsed.country === 'string' ? parsed.country.slice(0, 80) : 'India',
+              latitude: lat,
+              longitude: lon
+            };
+          }
         }
       } catch (e) {
         console.warn('Could not parse stored location', e);
@@ -321,16 +337,18 @@ class WeatherApp {
   }
 
   /**
-   * Theme switcher
+   * Theme switcher with strict value whitelist
    */
   applyTheme(theme) {
-    this.state.theme = theme;
-    localStorage.setItem('mausam_theme', theme);
-    document.documentElement.setAttribute('data-theme', theme);
+    const safeTheme = theme === 'light' ? 'light' : 'dark';
+    this.state.theme = safeTheme;
+    localStorage.setItem('mausam_theme', safeTheme);
+    document.documentElement.setAttribute('data-theme', safeTheme);
 
     if (this.ui.dom.themeToggleBtn) {
-      this.ui.dom.themeToggleBtn.setAttribute('aria-label', `Switch to ${theme === 'light' ? 'dark' : 'light'} theme`);
-      this.ui.dom.themeToggleBtn.title = `Switch to ${theme === 'light' ? 'dark' : 'light'} theme`;
+      const nextTheme = safeTheme === 'light' ? 'dark' : 'light';
+      this.ui.dom.themeToggleBtn.setAttribute('aria-label', `Switch to ${nextTheme} theme`);
+      this.ui.dom.themeToggleBtn.title = `Switch to ${nextTheme} theme`;
     }
   }
 
