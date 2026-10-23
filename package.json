@@ -5,8 +5,7 @@
   "description": "Professional Weather & Air Quality Dashboard built with plain HTML, CSS, and vanilla JavaScript",
   "scripts": {
     "dev": "npx -y serve -l 3000 .",
-    "start": "npx -y serve -l 3000 .",
-    "build": "echo 'Static deployment ready'"
+    "start": "npx -y serve -l 3000 ."
   },
   "keywords": [
     "weather",
