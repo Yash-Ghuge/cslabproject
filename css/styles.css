@@ -54,7 +54,7 @@
      BACKGROUND BLUR CONFIGURATION
      You can change this value anytime (e.g. 0px for sharp, 4px for subtle, 8px for soft, 12px for heavy blur):
      ======================================================================== */
-  --bg-nature-blur: 5px;
+  --bg-nature-blur: 3px;
 }
 
 /* ==========================================================================
