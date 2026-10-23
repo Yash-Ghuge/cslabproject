@@ -4,7 +4,7 @@
    ========================================================================== */
 
 :root {
-  /* Color System — Light Theme (Default) */
+  /* Color System — Light Theme */
   --bg-app: #F5F8FC;
   --surface-primary: #FFFFFF;
   --surface-secondary: #F8FAFC;
@@ -51,33 +51,158 @@
   --transition-normal: 0.25s ease;
 }
 
-/* Dark Theme Overrides */
-[data-theme="dark"] {
-  --bg-app: #0B1120;
-  --surface-primary: #1E293B;
-  --surface-secondary: #162032;
-  --surface-tertiary: #0F172A;
-  --border-subtle: #334155;
-  --border-hover: #475569;
+/* ==========================================================================
+   PURE BLACK + NATURE WALLPAPER + GLASSMORPHISM (DARK THEME)
+   ========================================================================== */
 
-  --text-primary: #F8FAFC;
-  --text-secondary: #94A3B8;
-  --text-muted: #64748B;
+[data-theme="dark"] {
+  --bg-app: #000000;
+  --surface-primary: rgba(10, 12, 18, 0.65);
+  --surface-secondary: rgba(255, 255, 255, 0.04);
+  --surface-tertiary: rgba(255, 255, 255, 0.08);
+  --border-subtle: rgba(255, 255, 255, 0.12);
+  --border-hover: rgba(255, 255, 255, 0.24);
+
+  --text-primary: #FFFFFF;
+  --text-secondary: #CBD5E1;
+  --text-muted: #94A3B8;
 
   --accent-primary: #38BDF8;
   --accent-primary-hover: #0EA5E9;
   --accent-secondary: #60A5FA;
-  --accent-light: rgba(56, 189, 248, 0.12);
+  --accent-light: rgba(56, 189, 248, 0.18);
 
-  --status-good-bg: rgba(22, 163, 74, 0.2);
-  --status-moderate-bg: rgba(217, 119, 6, 0.2);
-  --status-poor-bg: rgba(234, 88, 12, 0.2);
-  --status-unhealthy-bg: rgba(220, 38, 38, 0.2);
-  --status-very-unhealthy-bg: rgba(147, 51, 234, 0.2);
+  --status-good-bg: rgba(22, 163, 74, 0.25);
+  --status-moderate-bg: rgba(217, 119, 6, 0.25);
+  --status-poor-bg: rgba(234, 88, 12, 0.25);
+  --status-unhealthy-bg: rgba(220, 38, 38, 0.25);
+  --status-very-unhealthy-bg: rgba(147, 51, 234, 0.25);
 
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
-  --shadow-card: 0 4px 20px -2px rgba(0, 0, 0, 0.4);
-  --shadow-dropdown: 0 12px 32px 0 rgba(0, 0, 0, 0.5);
+  --shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.5);
+  --shadow-card: 0 16px 40px -10px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  --shadow-dropdown: 0 20px 45px rgba(0, 0, 0, 0.85);
+}
+
+/* Nature Background Layer for Dark Mode */
+[data-theme="dark"] body {
+  background-color: #000000;
+}
+
+[data-theme="dark"] body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.65) 0%, rgba(0, 0, 0, 0.45) 50%, rgba(0, 0, 0, 0.85) 100%),
+              url("../assets/dark_nature_bg.jpg") no-repeat center center / cover;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.92;
+}
+
+/* Dark Mode Glassmorphism Overrides */
+[data-theme="dark"] .app-header {
+  background-color: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .card {
+  background-color: rgba(8, 10, 16, 0.62);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(24px) saturate(190%);
+  -webkit-backdrop-filter: blur(24px) saturate(190%);
+  box-shadow: 0 16px 45px -10px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+[data-theme="dark"] .hero-card {
+  background-color: rgba(6, 8, 14, 0.72);
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+[data-theme="dark"] .search-input-box {
+  background-color: rgba(10, 12, 18, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+[data-theme="dark"] .search-dropdown {
+  background-color: rgba(6, 8, 12, 0.95);
+  border-color: rgba(255, 255, 255, 0.18);
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
+}
+
+[data-theme="dark"] .btn-geo {
+  background-color: rgba(12, 14, 20, 0.75);
+  border-color: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+[data-theme="dark"] .chip-btn {
+  background-color: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+[data-theme="dark"] .chip-btn.is-active {
+  background-color: rgba(37, 99, 235, 0.35);
+  border-color: #38BDF8;
+  color: #FFFFFF;
+  box-shadow: 0 0 16px rgba(56, 189, 248, 0.3);
+}
+
+[data-theme="dark"] .btn-header-action,
+[data-theme="dark"] .clock-display {
+  background-color: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+[data-theme="dark"] .metric-card {
+  background-color: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.09);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+[data-theme="dark"] .hourly-card {
+  background-color: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.09);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+[data-theme="dark"] .hourly-card.is-now {
+  background-color: rgba(56, 189, 248, 0.15);
+  border-color: #38BDF8;
+}
+
+[data-theme="dark"] .daily-row {
+  background-color: rgba(255, 255, 255, 0.035);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+[data-theme="dark"] .daily-row.is-today {
+  background-color: rgba(56, 189, 248, 0.12);
+  border-color: #38BDF8;
+}
+
+[data-theme="dark"] .pollutants-grid,
+[data-theme="dark"] .aqi-guidance-box {
+  background-color: rgba(0, 0, 0, 0.45);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+[data-theme="dark"] .app-footer {
+  background-color: rgba(0, 0, 0, 0.8);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
 }
 
 /* ==========================================================================
@@ -135,10 +260,16 @@ button {
   box-sizing: border-box;
 }
 
-/* ==========================================================================
-   APP HEADER
-   ========================================================================== */
+/* Header, Main, Footer Positioning above background */
+.app-header,
+.search-section,
+.dashboard-main,
+.app-footer {
+  position: relative;
+  z-index: 1;
+}
 
+/* Header */
 .app-header {
   width: 100%;
   background-color: var(--surface-primary);
@@ -515,7 +646,7 @@ button {
 }
 
 /* ==========================================================================
-   MAIN DASHBOARD GRID LAYOUT (FIXED: MINMAX PREVENTS HORIZONTAL BLOWOUT)
+   MAIN DASHBOARD GRID LAYOUT (BOUNDED COLUMNS)
    ========================================================================== */
 
 .dashboard-main {
@@ -543,11 +674,11 @@ button {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
-  min-width: 0; /* CRITICAL: Allows flex/grid children to shrink below content size */
+  min-width: 0;
   max-width: 100%;
 }
 
-/* Base Card (Bounded strictly within column) */
+/* Base Card */
 .card {
   background-color: var(--surface-primary);
   border: 1px solid var(--border-subtle);

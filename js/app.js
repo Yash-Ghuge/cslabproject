@@ -30,7 +30,7 @@ class WeatherApp {
       weatherData: null,
       airQualityData: null,
       unit: localStorage.getItem('mausam_unit') || 'C',
-      theme: localStorage.getItem('mausam_theme') || 'light',
+      theme: localStorage.getItem('mausam_theme') || 'dark',
       abortController: null,
       isFetching: false
     };
