@@ -139,10 +139,11 @@
 }
 
 [data-theme="dark"] .search-dropdown {
-  background-color: rgba(6, 8, 12, 0.95);
-  border-color: rgba(255, 255, 255, 0.18);
+  background-color: rgba(10, 12, 18, 0.98);
+  border-color: rgba(255, 255, 255, 0.2);
   backdrop-filter: blur(28px);
   -webkit-backdrop-filter: blur(28px);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.9), 0 0 0 1px rgba(255, 255, 255, 0.12);
 }
 
 [data-theme="dark"] .btn-geo {
@@ -276,24 +277,26 @@ button {
 }
 
 /* Header, Main, Footer Positioning above background */
-.app-header,
-.search-section,
-.dashboard-main,
-.app-footer {
-  position: relative;
-  z-index: 1;
-}
-
-/* Header */
 .app-header {
   width: 100%;
   background-color: var(--surface-primary);
   border-bottom: 1px solid var(--border-subtle);
   position: sticky;
   top: 0;
-  z-index: 50;
+  z-index: 100;
   box-shadow: var(--shadow-sm);
   transition: background-color var(--transition-normal), border-color var(--transition-normal);
+}
+
+.search-section {
+  position: relative;
+  z-index: 60;
+}
+
+.dashboard-main,
+.app-footer {
+  position: relative;
+  z-index: 1;
 }
 
 .header-inner {
@@ -430,6 +433,8 @@ button {
 .search-section {
   width: 100%;
   padding: 1.25rem 0 0.5rem;
+  position: relative;
+  z-index: 60;
 }
 
 .search-bar-row {
@@ -439,12 +444,15 @@ button {
   max-width: 680px;
   margin: 0 auto;
   width: 100%;
+  position: relative;
+  z-index: 70;
 }
 
 .search-wrapper {
   flex: 1;
   min-width: 0;
   position: relative;
+  z-index: 80;
 }
 
 .search-input-box {
@@ -487,16 +495,29 @@ button {
 
 .search-dropdown {
   position: absolute;
-  top: calc(100% + 6px);
+  top: calc(100% + 8px);
   left: 0;
   right: 0;
   background-color: var(--surface-primary);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
-  box-shadow: var(--shadow-dropdown);
-  max-height: 280px;
+  box-shadow: 0 16px 40px -4px rgba(0, 0, 0, 0.22), 0 6px 16px rgba(0, 0, 0, 0.08);
+  max-height: 300px;
   overflow-y: auto;
-  z-index: 100;
+  z-index: 9999;
+}
+
+.search-dropdown::-webkit-scrollbar {
+  width: 6px;
+}
+
+.search-dropdown::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.search-dropdown::-webkit-scrollbar-thumb {
+  background: var(--border-subtle);
+  border-radius: var(--radius-full);
 }
 
 .search-dropdown.is-hidden {
@@ -591,6 +612,8 @@ button {
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
   -ms-overflow-style: none;
+  position: relative;
+  z-index: 1;
 }
 
 .chips-nav::-webkit-scrollbar {
