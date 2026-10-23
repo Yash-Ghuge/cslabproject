@@ -323,9 +323,12 @@ function getClearSunIcon() {
 function getClearMoonIcon() {
   return `
     <svg viewBox="0 0 48 48" class="weather-icon-svg" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M30 14C21.7 14 15 20.7 15 29C15 34.5 18 39.3 22.4 41.5C17.4 40.1 13.5 35.7 13.5 30.2C13.5 22.6 19.4 16.5 27 16.5C29.8 16.5 32.4 17.3 34.5 18.7C33.2 15.7 31.8 14 30 14Z" fill="#FBBF24"/>
-      <circle cx="35" cy="14" r="1" fill="#FDE047"/>
-      <circle cx="39" cy="22" r="1" fill="#FDE047"/>
+      <!-- Crescent Moon -->
+      <path d="M 26 7 A 17 17 0 1 0 26 41 A 21 21 0 0 1 26 7 Z" fill="#FBBF24" stroke="#F59E0B" stroke-width="1.5" stroke-linejoin="round"/>
+      <!-- Sparkling Stars -->
+      <path d="M 37 9 Q 37 13 41 13 Q 37 13 37 17 Q 37 13 33 13 Q 37 13 37 9 Z" fill="#FDE047"/>
+      <path d="M 41 26 Q 41 29 44 29 Q 41 29 41 32 Q 41 29 38 29 Q 41 29 41 26 Z" fill="#FDE047" opacity="0.9"/>
+      <path d="M 32 23 Q 32 24.5 33.5 24.5 Q 32 24.5 32 26 Q 32 24.5 30.5 24.5 Q 32 24.5 32 23 Z" fill="#FEF08A" opacity="0.8"/>
     </svg>
   `;
 }
@@ -342,7 +345,11 @@ function getPartlyCloudySunIcon() {
 function getPartlyCloudyMoonIcon() {
   return `
     <svg viewBox="0 0 48 48" class="weather-icon-svg" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M22 13C17 13 13 17 13 22C13 25.5 15 28 17.8 29.4C14.8 28.5 12.5 25.8 12.5 22.5C12.5 17.8 16.3 14 21 14C22.6 14 24 14.5 25.2 15.3C24 13.8 23 13 22 13Z" fill="#FBBF24"/>
+      <!-- Crescent Moon behind cloud -->
+      <path d="M 21 9 A 8 8 0 1 0 21 25 A 10 10 0 0 1 21 9 Z" fill="#FBBF24" stroke="#F59E0B" stroke-width="1.2" stroke-linejoin="round"/>
+      <!-- Background Star -->
+      <path d="M 34 9 Q 34 11.5 36.5 11.5 Q 34 11.5 34 14 Q 34 11.5 31.5 11.5 Q 34 11.5 34 9 Z" fill="#FDE047"/>
+      <!-- Foreground Cloud -->
       <path d="M34 38H16C12.13 38 9 34.87 9 31C9 27.35 11.79 24.36 15.33 24.04C16.48 19.2 20.79 15.6 25.94 15.6C31.96 15.6 36.89 20.28 37.25 26.23C40.28 26.96 42.6 29.66 42.6 32.93C42.6 36.68 39.52 38 34 38Z" fill="#94A3B8"/>
     </svg>
   `;
