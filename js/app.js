@@ -1,814 +1,364 @@
 /**
- * Mausam (मौसम) - Indian Weather Intelligence App
- * Core Application Logic, UI controller, and event handlers
+ * Mausam Weather & Air Quality Dashboard
+ * Main Application Orchestrator (ES Module)
  */
 
-const AppState = {
-  currentCity: {
-    name: "Pune",
-    state: "Maharashtra",
-    lat: 18.5204,
-    lon: 73.8567
-  },
-  weatherData: null,
-  airQualityData: null,
-  unit: "C", // 'C' or 'F'
-  canvasEngine: null
-};
+import {
+  getWeatherData,
+  getAirQualityData,
+  searchLocations,
+  reverseGeocodeLocation,
+  DEFAULT_INDIAN_CITIES
+} from './api.js';
+import { normalizeWeatherData } from './weather.js';
+import { normalizeAirQualityData } from './air-quality.js';
+import { WeatherUI } from './ui.js';
 
-// DOM Elements cache
-const DOM = {
-  themeContainer: document.getElementById("theme-container"),
-  liveClock: document.getElementById("live-clock"),
-  searchInput: document.getElementById("search-input"),
-  searchDropdown: document.getElementById("search-dropdown"),
-  searchWrapper: document.getElementById("search-wrapper"),
-  geoBtn: document.getElementById("btn-geolocation"),
-  unitToggleBtn: document.getElementById("btn-unit-toggle"),
-  unitLabel: document.getElementById("unit-label"),
-  chipsContainer: document.getElementById("popular-chips"),
-  loadingOverlay: document.getElementById("loading-state"),
-  errorState: document.getElementById("error-state"),
-  errorMessage: document.getElementById("error-message"),
-  retryBtn: document.getElementById("retry-btn"),
+class WeatherApp {
+  constructor() {
+    this.ui = new WeatherUI();
 
-  // Weather Main Info
-  cityName: document.getElementById("city-name"),
-  stateCountry: document.getElementById("state-country"),
-  currentDate: document.getElementById("current-date"),
-  weatherIconLarge: document.getElementById("weather-icon-large"),
-  weatherDesc: document.getElementById("weather-desc"),
-  weatherHindiDesc: document.getElementById("weather-hindi-desc"),
-  currentTemp: document.getElementById("current-temp"),
-  tempUnitBadge: document.getElementById("temp-unit-badge"),
-  feelsLikeTemp: document.getElementById("feels-like-temp"),
-  tempHighLow: document.getElementById("temp-high-low"),
-
-  // Details
-  humidityVal: document.getElementById("val-humidity"),
-  humidityDesc: document.getElementById("desc-humidity"),
-  windVal: document.getElementById("val-wind"),
-  windDirectionPointer: document.getElementById("wind-pointer"),
-  windDesc: document.getElementById("desc-wind"),
-  uvVal: document.getElementById("val-uv"),
-  uvDesc: document.getElementById("desc-uv"),
-  pressureVal: document.getElementById("val-pressure"),
-  rainChanceVal: document.getElementById("val-rain-chance"),
-
-  // AQI Radial Gauge
-  aqiValue: document.getElementById("val-aqi"),
-  aqiBadge: document.getElementById("badge-aqi"),
-  aqiGaugeArc: document.getElementById("aqi-gauge-arc"),
-  aqiGaugeNeedle: document.getElementById("aqi-gauge-needle"),
-  aqiAdvice: document.getElementById("aqi-advice"),
-  pm25Val: document.getElementById("val-pm25"),
-  pm10Val: document.getElementById("val-pm10"),
-  no2Val: document.getElementById("val-no2"),
-  o3Val: document.getElementById("val-o3"),
-
-  // Sun Cycle
-  sunriseTime: document.getElementById("val-sunrise"),
-  sunsetTime: document.getElementById("val-sunset"),
-  daylightDuration: document.getElementById("val-daylight"),
-  sunArcIndicator: document.getElementById("sun-arc-indicator"),
-
-  // Lists
-  hourlyList: document.getElementById("hourly-forecast-list"),
-  dailyList: document.getElementById("daily-forecast-list"),
-  btnScrollLeft: document.getElementById("btn-scroll-left"),
-  btnScrollRight: document.getElementById("btn-scroll-right")
-};
-
-/* ==========================================================================
-   INITIALIZATION
-   ========================================================================== */
-
-document.addEventListener("DOMContentLoaded", () => {
-  // Initialize dynamic atmospheric background particle engine
-  try {
-    AppState.canvasEngine = new WeatherCanvasEngine("weather-canvas");
-  } catch (err) {
-    console.warn("Canvas engine init fallback:", err);
-  }
-
-  initClock();
-  renderPopularChips();
-  setupEventListeners();
-
-  // Load saved city or default to Pune
-  const savedCity = localStorage.getItem("mausam_saved_city");
-  if (savedCity) {
-    try {
-      AppState.currentCity = JSON.parse(savedCity);
-    } catch (e) {
-      console.warn("Could not parse saved city", e);
-    }
-  }
-
-  const savedUnit = localStorage.getItem("mausam_unit");
-  if (savedUnit && (savedUnit === "C" || savedUnit === "F")) {
-    AppState.unit = savedUnit;
-    updateUnitDisplay();
-  }
-
-  loadCityWeather(AppState.currentCity);
-});
-
-/* ==========================================================================
-   LIVE INDIAN STANDARD TIME (IST) CLOCK
-   ========================================================================== */
-
-function initClock() {
-  function updateTime() {
-    const now = new Date();
-    const options = {
-      weekday: "short",
-      day: "numeric",
-      month: "short",
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-      hour12: true
+    // Default to Pune, Maharashtra
+    this.state = {
+      location: {
+        name: 'Pune',
+        admin1: 'Maharashtra',
+        country: 'India',
+        latitude: 18.5204,
+        longitude: 73.8567
+      },
+      weatherData: null,
+      airQualityData: null,
+      unit: localStorage.getItem('mausam_unit') || 'C',
+      theme: localStorage.getItem('mausam_theme') || 'light',
+      abortController: null,
+      isFetching: false
     };
-    if (DOM.liveClock) {
-      DOM.liveClock.textContent = now.toLocaleDateString("en-IN", options);
+
+    this.debounceTimer = null;
+  }
+
+  /**
+   * Application bootstrap
+   */
+  async init() {
+    this.applyTheme(this.state.theme);
+    this.ui.updateUnitToggleLabel(this.state.unit);
+    this.startLiveClock();
+    this.bindEvents();
+
+    // Load saved location if available
+    const savedLoc = localStorage.getItem('mausam_location');
+    if (savedLoc) {
+      try {
+        const parsed = JSON.parse(savedLoc);
+        if (parsed.name && parsed.latitude && parsed.longitude) {
+          this.state.location = parsed;
+        }
+      } catch (e) {
+        console.warn('Could not parse stored location', e);
+      }
+    }
+
+    this.renderChips();
+    await this.loadLocationData(this.state.location);
+  }
+
+  /**
+   * Load Weather and Air Quality data concurrently with race-condition prevention
+   */
+  async loadLocationData(location) {
+    // Cancel any ongoing fetch to avoid race condition
+    if (this.state.abortController) {
+      this.state.abortController.abort();
+    }
+    this.state.abortController = new AbortController();
+    const signal = this.state.abortController.signal;
+
+    this.state.location = location;
+    this.state.isFetching = true;
+    this.ui.setRefreshing(true);
+    this.ui.hideError();
+
+    // Persist location
+    localStorage.setItem('mausam_location', JSON.stringify(location));
+    this.renderChips();
+
+    try {
+      const lat = location.latitude;
+      const lon = location.longitude;
+
+      // Independent requests using Promise.allSettled
+      const [weatherResult, aqiResult] = await Promise.allSettled([
+        getWeatherData(lat, lon, signal),
+        getAirQualityData(lat, lon, signal)
+      ]);
+
+      // Handle Weather Result
+      if (weatherResult.status === 'fulfilled' && weatherResult.value) {
+        this.state.weatherData = normalizeWeatherData(weatherResult.value);
+        this.ui.renderHero(this.state.weatherData, this.state.location, this.state.unit);
+        this.ui.renderMetrics(this.state.weatherData, this.state.unit);
+        this.ui.renderHourly(this.state.weatherData.hourly, this.state.unit);
+        this.ui.renderDaily(this.state.weatherData.daily, this.state.unit);
+        this.ui.renderSunTracker(this.state.weatherData.sun);
+        this.ui.updateLastUpdated(new Date());
+      } else if (weatherResult.status === 'rejected') {
+        const err = weatherResult.reason;
+        if (err.name !== 'AbortError') {
+          console.error('Weather data request failed:', err);
+          this.ui.showError('Unable to load weather forecast. Please check your network and click Retry.');
+        }
+      }
+
+      // Handle Air Quality Result independently (doesn't fail weather if AQI is missing)
+      if (aqiResult.status === 'fulfilled' && aqiResult.value) {
+        this.state.airQualityData = normalizeAirQualityData(aqiResult.value);
+        this.ui.renderAirQuality(this.state.airQualityData);
+      } else {
+        this.state.airQualityData = null;
+        this.ui.renderAirQuality(null);
+      }
+    } catch (err) {
+      if (err.name !== 'AbortError') {
+        console.error('Data loading error:', err);
+        this.ui.showError('An unexpected network error occurred.');
+      }
+    } finally {
+      this.state.isFetching = false;
+      this.ui.setRefreshing(false);
     }
   }
-  updateTime();
-  setInterval(updateTime, 1000);
-}
 
-/* ==========================================================================
-   EVENT LISTENERS
-   ========================================================================== */
+  /**
+   * Event bindings
+   */
+  bindEvents() {
+    // Unit Toggle
+    if (this.ui.dom.unitToggleBtn) {
+      this.ui.dom.unitToggleBtn.addEventListener('click', () => {
+        this.state.unit = this.state.unit === 'C' ? 'F' : 'C';
+        localStorage.setItem('mausam_unit', this.state.unit);
+        this.ui.updateUnitToggleLabel(this.state.unit);
 
-function setupEventListeners() {
-  // Unit toggle
-  if (DOM.unitToggleBtn) {
-    DOM.unitToggleBtn.addEventListener("click", () => {
-      AppState.unit = AppState.unit === "C" ? "F" : "C";
-      localStorage.setItem("mausam_unit", AppState.unit);
-      updateUnitDisplay();
-      if (AppState.weatherData) {
-        renderAllWeather(AppState.weatherData, AppState.airQualityData);
-      }
-    });
-  }
-
-  // Geolocation button
-  if (DOM.geoBtn) {
-    DOM.geoBtn.addEventListener("click", handleGeolocation);
-  }
-
-  // Search input debounced autocomplete
-  let debounceTimeout = null;
-  if (DOM.searchInput) {
-    DOM.searchInput.addEventListener("input", (e) => {
-      clearTimeout(debounceTimeout);
-      const query = e.target.value.trim();
-      if (query.length < 2) {
-        hideDropdown();
-        return;
-      }
-      debounceTimeout = setTimeout(() => {
-        handleSearch(query);
-      }, 250);
-    });
-
-    DOM.searchInput.addEventListener("focus", () => {
-      if (DOM.searchInput.value.trim().length >= 2) {
-        DOM.searchDropdown.classList.remove("hidden");
-      }
-    });
-  }
-
-  // Close search dropdown when clicking outside
-  document.addEventListener("click", (e) => {
-    if (DOM.searchWrapper && !DOM.searchWrapper.contains(e.target)) {
-      hideDropdown();
+        // Re-render without re-fetching
+        if (this.state.weatherData) {
+          this.ui.renderHero(this.state.weatherData, this.state.location, this.state.unit);
+          this.ui.renderMetrics(this.state.weatherData, this.state.unit);
+          this.ui.renderHourly(this.state.weatherData.hourly, this.state.unit);
+          this.ui.renderDaily(this.state.weatherData.daily, this.state.unit);
+        }
+      });
     }
-  });
 
-  // Hourly forecast horizontal scroll buttons
-  if (DOM.btnScrollLeft && DOM.hourlyList) {
-    DOM.btnScrollLeft.addEventListener("click", () => {
-      DOM.hourlyList.scrollBy({ left: -260, behavior: "smooth" });
-    });
-  }
-  if (DOM.btnScrollRight && DOM.hourlyList) {
-    DOM.btnScrollRight.addEventListener("click", () => {
-      DOM.hourlyList.scrollBy({ left: 260, behavior: "smooth" });
-    });
-  }
-
-  // Retry button on error
-  if (DOM.retryBtn) {
-    DOM.retryBtn.addEventListener("click", () => {
-      loadCityWeather(AppState.currentCity);
-    });
-  }
-}
-
-function updateUnitDisplay() {
-  if (DOM.unitLabel) {
-    DOM.unitLabel.textContent = `°${AppState.unit}`;
-  }
-  if (DOM.tempUnitBadge) {
-    DOM.tempUnitBadge.textContent = `°${AppState.unit}`;
-  }
-}
-
-/* ==========================================================================
-   POPULAR INDIAN CITIES QUICK CHIPS
-   ========================================================================== */
-
-function renderPopularChips() {
-  if (!DOM.chipsContainer) return;
-  DOM.chipsContainer.innerHTML = "";
-
-  POPULAR_CHIPS.forEach(cityName => {
-    const cityInfo = INDIAN_CITIES.find(c => c.name.toLowerCase() === cityName.toLowerCase());
-    if (!cityInfo) return;
-
-    const chip = document.createElement("button");
-    chip.className = `city-chip ${AppState.currentCity.name === cityInfo.name ? "active" : ""}`;
-    chip.setAttribute("type", "button");
-    chip.setAttribute("aria-label", `Show weather for ${cityInfo.name}`);
-    chip.innerHTML = `<span class="pin">📍</span> ${cityInfo.name}`;
-
-    chip.addEventListener("click", () => {
-      document.querySelectorAll(".city-chip").forEach(c => c.classList.remove("active"));
-      chip.classList.add("active");
-      loadCityWeather(cityInfo);
-    });
-
-    DOM.chipsContainer.appendChild(chip);
-  });
-}
-
-function updateActiveChip(cityName) {
-  document.querySelectorAll(".city-chip").forEach(chip => {
-    if (chip.textContent.includes(cityName)) {
-      chip.classList.add("active");
-    } else {
-      chip.classList.remove("active");
+    // Theme Toggle (Light / Dark)
+    if (this.ui.dom.themeToggleBtn) {
+      this.ui.dom.themeToggleBtn.addEventListener('click', () => {
+        const newTheme = this.state.theme === 'light' ? 'dark' : 'light';
+        this.applyTheme(newTheme);
+      });
     }
-  });
-}
 
-/* ==========================================================================
-   SEARCH & AUTOCOMPLETE
-   ========================================================================== */
+    // Refresh Button
+    if (this.ui.dom.refreshBtn) {
+      this.ui.dom.refreshBtn.addEventListener('click', () => {
+        if (!this.state.isFetching) {
+          this.loadLocationData(this.state.location);
+        }
+      });
+    }
 
-async function handleSearch(query) {
-  if (!DOM.searchDropdown) return;
+    // Retry Button on error banner
+    if (this.ui.dom.retryBtn) {
+      this.ui.dom.retryBtn.addEventListener('click', () => {
+        this.loadLocationData(this.state.location);
+      });
+    }
 
-  DOM.searchDropdown.innerHTML = `<div class="search-loading">Searching Indian locations...</div>`;
-  DOM.searchDropdown.classList.remove("hidden");
+    // Geolocation detection
+    if (this.ui.dom.geoBtn) {
+      this.ui.dom.geoBtn.addEventListener('click', () => this.handleGeolocation());
+    }
 
-  try {
-    const results = await WeatherAPI.searchCities(query);
-    if (!results || results.length === 0) {
-      DOM.searchDropdown.innerHTML = `<div class="search-empty">No Indian cities found matching "${query}". Try Pune, Mumbai, Delhi, etc.</div>`;
+    // Debounced Search Input
+    if (this.ui.dom.searchInput) {
+      this.ui.dom.searchInput.addEventListener('input', (e) => {
+        const query = e.target.value.trim();
+        clearTimeout(this.debounceTimer);
+
+        if (query.length < 2) {
+          this.ui.hideSearchDropdown();
+          return;
+        }
+
+        this.debounceTimer = setTimeout(async () => {
+          try {
+            const results = await searchLocations(query);
+            this.ui.renderSearchSuggestions(results, (selected) => {
+              this.ui.dom.searchInput.value = selected.name;
+              this.loadLocationData({
+                name: selected.name,
+                admin1: selected.admin1,
+                country: selected.country,
+                latitude: selected.latitude,
+                longitude: selected.longitude
+              });
+            });
+          } catch (err) {
+            console.warn('Search query failed:', err);
+          }
+        }, 250);
+      });
+
+      // Submit on Enter key
+      this.ui.dom.searchInput.addEventListener('keydown', async (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          const query = this.ui.dom.searchInput.value.trim();
+          if (query.length >= 2) {
+            try {
+              const results = await searchLocations(query);
+              if (results && results.length > 0) {
+                const first = results[0];
+                this.ui.hideSearchDropdown();
+                this.loadLocationData({
+                  name: first.name,
+                  admin1: first.admin1,
+                  country: first.country,
+                  latitude: first.latitude,
+                  longitude: first.longitude
+                });
+              }
+            } catch (err) {
+              console.warn('Enter search failed:', err);
+            }
+          }
+        } else if (e.key === 'Escape') {
+          this.ui.hideSearchDropdown();
+        }
+      });
+    }
+
+    // Close search dropdown on click outside
+    document.addEventListener('click', (e) => {
+      const isInside = e.target.closest('#search-wrapper');
+      if (!isInside) {
+        this.ui.hideSearchDropdown();
+      }
+    });
+
+    // Hourly horizontal scroll controls
+    if (this.ui.dom.scrollHourlyLeft && this.ui.dom.hourlyList) {
+      this.ui.dom.scrollHourlyLeft.addEventListener('click', () => {
+        this.ui.dom.hourlyList.scrollBy({ left: -260, behavior: 'smooth' });
+      });
+    }
+    if (this.ui.dom.scrollHourlyRight && this.ui.dom.hourlyList) {
+      this.ui.dom.scrollHourlyRight.addEventListener('click', () => {
+        this.ui.dom.hourlyList.scrollBy({ left: 260, behavior: 'smooth' });
+      });
+    }
+  }
+
+  /**
+   * Handle user-initiated GPS Geolocation
+   */
+  handleGeolocation() {
+    if (!navigator.geolocation) {
+      this.ui.showError('Geolocation is not supported by your browser.', false);
       return;
     }
 
-    DOM.searchDropdown.innerHTML = "";
-    results.forEach(city => {
-      const item = document.createElement("div");
-      item.className = "search-item";
-      item.innerHTML = `
-        <div class="search-item-main">
-          <span class="search-item-pin">📍</span>
-          <div>
-            <div class="search-city-title">${city.name}</div>
-            <div class="search-city-sub">${city.state ? city.state + ", " : ""}India</div>
-          </div>
-        </div>
-        ${city.isLocal ? '<span class="badge-quick">Verified</span>' : ''}
-      `;
+    this.ui.setGeoSpinning(true);
 
-      item.addEventListener("click", () => {
-        DOM.searchInput.value = `${city.name}, ${city.state}`;
-        hideDropdown();
-        loadCityWeather({
-          name: city.name,
-          state: city.state,
-          lat: city.latitude,
-          lon: city.longitude
-        });
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        this.ui.setGeoSpinning(false);
+        const lat = pos.coords.latitude;
+        const lon = pos.coords.longitude;
+
+        try {
+          const loc = await reverseGeocodeLocation(lat, lon);
+          this.loadLocationData(loc);
+        } catch {
+          this.loadLocationData({
+            name: 'My Location',
+            admin1: 'India',
+            country: 'India',
+            latitude: lat,
+            longitude: lon
+          });
+        }
+      },
+      (error) => {
+        this.ui.setGeoSpinning(false);
+        let msg = 'Could not retrieve your GPS position.';
+        if (error.code === error.PERMISSION_DENIED) {
+          msg = 'Location permission was denied. You can still search for any city in India.';
+        } else if (error.code === error.TIMEOUT) {
+          msg = 'Location request timed out. Please try again.';
+        }
+        this.ui.showError(msg, false);
+      },
+      { timeout: 9000, enableHighAccuracy: true }
+    );
+  }
+
+  /**
+   * Render popular city chips
+   */
+  renderChips() {
+    const popularList = DEFAULT_INDIAN_CITIES.slice(0, 10);
+    this.ui.renderQuickChips(popularList, this.state.location.name, (selectedCity) => {
+      this.loadLocationData({
+        name: selectedCity.name,
+        admin1: selectedCity.state,
+        country: selectedCity.country,
+        latitude: selectedCity.lat,
+        longitude: selectedCity.lon
       });
-
-      DOM.searchDropdown.appendChild(item);
-    });
-  } catch (err) {
-    console.error("Search error:", err);
-    DOM.searchDropdown.innerHTML = `<div class="search-empty">Unable to fetch suggestions. Please check connection.</div>`;
-  }
-}
-
-function hideDropdown() {
-  if (DOM.searchDropdown) {
-    DOM.searchDropdown.classList.add("hidden");
-  }
-}
-
-/* ==========================================================================
-   GEOLOCATION
-   ========================================================================== */
-
-function handleGeolocation() {
-  if (!navigator.geolocation) {
-    alert("Geolocation is not supported by your browser.");
-    return;
-  }
-
-  DOM.geoBtn.classList.add("spinning");
-
-  navigator.geolocation.getCurrentPosition(
-    async (position) => {
-      DOM.geoBtn.classList.remove("spinning");
-      const lat = position.coords.latitude;
-      const lon = position.coords.longitude;
-
-      try {
-        const locationInfo = await WeatherAPI.reverseGeocode(lat, lon);
-        loadCityWeather(locationInfo);
-      } catch (e) {
-        loadCityWeather({
-          name: "My Location",
-          state: "India",
-          lat: lat,
-          lon: lon
-        });
-      }
-    },
-    (error) => {
-      DOM.geoBtn.classList.remove("spinning");
-      let message = "Unable to retrieve your location.";
-      if (error.code === error.PERMISSION_DENIED) {
-        message = "Location permission denied. You can still search for any Indian city!";
-      }
-      alert(message);
-    },
-    { timeout: 10000, enableHighAccuracy: true }
-  );
-}
-
-/* ==========================================================================
-   MAIN DATA LOADER
-   ========================================================================== */
-
-async function loadCityWeather(city) {
-  AppState.currentCity = city;
-  localStorage.setItem("mausam_saved_city", JSON.stringify(city));
-  updateActiveChip(city.name);
-
-  showLoading();
-  hideError();
-
-  try {
-    const [forecastData, airQualityData] = await Promise.all([
-      WeatherAPI.getForecast(city.lat || city.latitude, city.lon || city.longitude),
-      WeatherAPI.getAirQuality(city.lat || city.latitude, city.lon || city.longitude)
-    ]);
-
-    AppState.weatherData = forecastData;
-    AppState.airQualityData = airQualityData;
-
-    renderAllWeather(forecastData, airQualityData);
-    hideLoading();
-  } catch (err) {
-    console.error("Error loading weather data:", err);
-    showError("Could not retrieve weather data. Please check your internet connection and try again.");
-    hideLoading();
-  }
-}
-
-function showLoading() {
-  if (DOM.loadingOverlay) DOM.loadingOverlay.classList.remove("hidden");
-}
-
-function hideLoading() {
-  if (DOM.loadingOverlay) DOM.loadingOverlay.classList.add("hidden");
-}
-
-function showError(msg) {
-  if (DOM.errorMessage) DOM.errorMessage.textContent = msg;
-  if (DOM.errorState) DOM.errorState.classList.remove("hidden");
-}
-
-function hideError() {
-  if (DOM.errorState) DOM.errorState.classList.add("hidden");
-}
-
-/* ==========================================================================
-   RENDER METHODS
-   ========================================================================== */
-
-function renderAllWeather(weather, aqi) {
-  renderHero(weather);
-  renderWeatherMetrics(weather);
-  renderAirQuality(aqi);
-  renderHourlyForecast(weather);
-  renderDailyForecast(weather);
-  renderSunCycle(weather);
-}
-
-/**
- * Render main current weather card & dynamic atmospheric mood
- */
-function renderHero(data) {
-  const current = data.current;
-  const isDay = current.is_day;
-  const weatherCode = current.weather_code;
-  const weatherInfo = getWeatherInfo(weatherCode, isDay);
-
-  // Update canvas background weather engine
-  if (AppState.canvasEngine) {
-    AppState.canvasEngine.setWeatherState(weatherCode, isDay);
-  }
-
-  // Update dynamic atmospheric background theme class
-  if (DOM.themeContainer) {
-    DOM.themeContainer.className = `app-wrapper ${weatherInfo.themeClass}`;
-  }
-
-  // City & State
-  if (DOM.cityName) DOM.cityName.textContent = AppState.currentCity.name;
-  if (DOM.stateCountry) {
-    const stateStr = AppState.currentCity.state ? `${AppState.currentCity.state}, ` : "";
-    DOM.stateCountry.textContent = `${stateStr}India 🇮🇳`;
-  }
-
-  // Date
-  if (DOM.currentDate) {
-    const now = new Date();
-    DOM.currentDate.textContent = now.toLocaleDateString("en-IN", {
-      weekday: "long",
-      day: "numeric",
-      month: "long",
-      year: "numeric"
     });
   }
 
-  // Icon & Condition
-  if (DOM.weatherIconLarge) {
-    DOM.weatherIconLarge.innerHTML = weatherInfo.icon;
-  }
-  if (DOM.weatherDesc) DOM.weatherDesc.textContent = weatherInfo.label;
-  if (DOM.weatherHindiDesc) DOM.weatherHindiDesc.textContent = weatherInfo.hindiLabel;
+  /**
+   * Theme switcher
+   */
+  applyTheme(theme) {
+    this.state.theme = theme;
+    localStorage.setItem('mausam_theme', theme);
+    document.documentElement.setAttribute('data-theme', theme);
 
-  // Temperature
-  const currentTempVal = formatTemperature(current.temperature_2m);
-  if (DOM.currentTemp) DOM.currentTemp.textContent = currentTempVal;
-
-  // Feels like
-  const feelsLikeVal = formatTemperature(current.apparent_temperature);
-  if (DOM.feelsLikeTemp) DOM.feelsLikeTemp.textContent = `${feelsLikeVal}°${AppState.unit}`;
-
-  // High / Low for today
-  if (data.daily && data.daily.temperature_2m_max && data.daily.temperature_2m_min) {
-    const maxT = formatTemperature(data.daily.temperature_2m_max[0]);
-    const minT = formatTemperature(data.daily.temperature_2m_min[0]);
-    if (DOM.tempHighLow) {
-      DOM.tempHighLow.innerHTML = `<span>H: ${maxT}°</span> • <span>L: ${minT}°</span>`;
-    }
-  }
-}
-
-/**
- * Render grid metrics (humidity, wind compass, UV, pressure, rain probability)
- */
-function renderWeatherMetrics(data) {
-  const current = data.current;
-  const daily = data.daily;
-
-  // Humidity
-  if (DOM.humidityVal) DOM.humidityVal.textContent = `${Math.round(current.relative_humidity_2m)}%`;
-  if (DOM.humidityDesc) {
-    const h = current.relative_humidity_2m;
-    if (h > 75) DOM.humidityDesc.textContent = "High (Humid / Sticky)";
-    else if (h > 45) DOM.humidityDesc.textContent = "Comfortable level";
-    else DOM.humidityDesc.textContent = "Dry atmosphere";
-  }
-
-  // Wind
-  const windSpeed = AppState.unit === "C"
-    ? `${Math.round(current.wind_speed_10m)} km/h`
-    : `${Math.round(current.wind_speed_10m * 0.621371)} mph`;
-  if (DOM.windVal) DOM.windVal.textContent = windSpeed;
-
-  if (DOM.windDirectionPointer) {
-    const dir = current.wind_direction_10m || 0;
-    DOM.windDirectionPointer.style.transform = `rotate(${dir}deg)`;
-  }
-  if (DOM.windDesc) {
-    DOM.windDesc.textContent = getWindDirectionText(current.wind_direction_10m);
-  }
-
-  // UV Index
-  const uv = current.uv_index !== undefined ? current.uv_index : (daily.uv_index_max ? daily.uv_index_max[0] : 0);
-  if (DOM.uvVal) DOM.uvVal.textContent = Math.round(uv * 10) / 10;
-  if (DOM.uvDesc) {
-    if (uv <= 2) DOM.uvDesc.textContent = "Low (Safe outdoors)";
-    else if (uv <= 5) DOM.uvDesc.textContent = "Moderate (Sunscreen advised)";
-    else if (uv <= 7) DOM.uvDesc.textContent = "High (Seek shade midday)";
-    else if (uv <= 10) DOM.uvDesc.textContent = "Very High (Wear hat & glasses)";
-    else DOM.uvDesc.textContent = "Extreme danger (Stay indoors)";
-  }
-
-  // Pressure
-  if (DOM.pressureVal) {
-    DOM.pressureVal.textContent = `${Math.round(current.surface_pressure || 1013)} hPa`;
-  }
-
-  // Rain Probability
-  const rainProb = daily.precipitation_probability_max ? daily.precipitation_probability_max[0] : 0;
-  if (DOM.rainChanceVal) {
-    DOM.rainChanceVal.textContent = `${Math.round(rainProb)}%`;
-  }
-}
-
-/**
- * Render Radial Air Quality Index (AQI) Gauge with Indian CPCB guidelines
- */
-function renderAirQuality(aqiData) {
-  if (!aqiData || !aqiData.current) {
-    if (DOM.aqiValue) DOM.aqiValue.textContent = "--";
-    if (DOM.aqiBadge) {
-      DOM.aqiBadge.textContent = "Data Unavailable";
-      DOM.aqiBadge.className = "aqi-badge aqi-unknown";
-    }
-    if (DOM.aqiAdvice) DOM.aqiAdvice.textContent = "Real-time air sensor data is currently offline for this location.";
-    return;
-  }
-
-  const curr = aqiData.current;
-  const pm25 = curr.pm2_5 || 0;
-  const pm10 = curr.pm10 || 0;
-  const no2 = curr.nitrogen_dioxide || 0;
-  const o3 = curr.ozone || 0;
-
-  // Update pollutant values
-  if (DOM.pm25Val) DOM.pm25Val.textContent = `${Math.round(pm25)} µg/m³`;
-  if (DOM.pm10Val) DOM.pm10Val.textContent = `${Math.round(pm10)} µg/m³`;
-  if (DOM.no2Val) DOM.no2Val.textContent = `${Math.round(no2)} µg/m³`;
-  if (DOM.o3Val) DOM.o3Val.textContent = `${Math.round(o3)} µg/m³`;
-
-  // Compute Indian CPCB / US AQI number
-  const aqiNum = Math.round(curr.us_aqi || (pm25 * 3.5));
-  if (DOM.aqiValue) DOM.aqiValue.textContent = aqiNum;
-
-  let category = "Good";
-  let badgeClass = "aqi-good";
-  let advice = "Air quality is satisfactory and poses little to no health risk. Great day for morning walks!";
-
-  if (aqiNum <= 50) {
-    category = "Good (उत्तम)";
-    badgeClass = "aqi-good";
-    advice = "Air quality is pristine. Ideal conditions for outdoor activities and morning runs across the city.";
-  } else if (aqiNum <= 100) {
-    category = "Moderate (संतोषजनक)";
-    badgeClass = "aqi-moderate";
-    advice = "Acceptable air quality. Exceptionally sensitive individuals should monitor outdoor prolonged exertion.";
-  } else if (aqiNum <= 150) {
-    category = "Unhealthy for Sensitive (मध्यम)";
-    badgeClass = "aqi-unhealthy-sensitive";
-    advice = "Children, elderly, and people with respiratory conditions should limit prolonged outdoor exertion.";
-  } else if (aqiNum <= 200) {
-    category = "Poor (खराब)";
-    badgeClass = "aqi-poor";
-    advice = "General public may experience irritation. Consider wearing an N95 mask during heavy traffic / peak smog.";
-  } else if (aqiNum <= 300) {
-    category = "Very Poor (बहुत खराब)";
-    badgeClass = "aqi-very-poor";
-    advice = "Health alert: increased likelihood of respiratory issues. Avoid morning jogging and keep indoor windows closed.";
-  } else {
-    category = "Severe (गंभीर)";
-    badgeClass = "aqi-severe";
-    advice = "Emergency conditions: Entire population is at risk. Run air purifiers indoors and avoid stepping outside.";
-  }
-
-  if (DOM.aqiBadge) {
-    DOM.aqiBadge.textContent = category;
-    DOM.aqiBadge.className = `aqi-badge ${badgeClass}`;
-  }
-
-  if (DOM.aqiAdvice) {
-    DOM.aqiAdvice.textContent = advice;
-  }
-
-  // Update Radial Semi-Circle Gauge Arc & Needle
-  // Circumference of semi-circle arc of radius 80 = PI * 80 ≈ 251.3
-  const maxScale = 400;
-  const ratio = Math.min(Math.max(aqiNum / maxScale, 0), 1);
-  const totalLength = 251.3;
-  const dashOffset = totalLength * (1 - ratio);
-
-  if (DOM.aqiGaugeArc) {
-    DOM.aqiGaugeArc.style.strokeDashoffset = dashOffset;
-  }
-
-  // Calculate needle coordinate on semi-circle
-  // Arc center: (100, 100), Radius: 80
-  // Left angle is PI (180deg), Right angle is 0 (0deg)
-  const angle = Math.PI - ratio * Math.PI;
-  const needleX = 100 + 80 * Math.cos(angle);
-  const needleY = 100 - 80 * Math.sin(angle);
-
-  if (DOM.aqiGaugeNeedle) {
-    DOM.aqiGaugeNeedle.setAttribute("cx", needleX);
-    DOM.aqiGaugeNeedle.setAttribute("cy", needleY);
-  }
-}
-
-/**
- * Render 24-Hour Forecast carousel
- */
-function renderHourlyForecast(data) {
-  if (!DOM.hourlyList || !data.hourly) return;
-  DOM.hourlyList.innerHTML = "";
-
-  const hourly = data.hourly;
-  const currentIsoHour = new Date().getHours();
-  const times = hourly.time;
-
-  // Find index of current hour
-  let startIndex = 0;
-  for (let i = 0; i < times.length; i++) {
-    const itemDate = new Date(times[i]);
-    if (itemDate.getHours() === currentIsoHour) {
-      startIndex = i;
-      break;
+    if (this.ui.dom.themeToggleBtn) {
+      this.ui.dom.themeToggleBtn.setAttribute('aria-label', `Switch to ${theme === 'light' ? 'dark' : 'light'} theme`);
+      this.ui.dom.themeToggleBtn.title = `Switch to ${theme === 'light' ? 'dark' : 'light'} theme`;
     }
   }
 
-  const next24 = times.slice(startIndex, startIndex + 24);
-
-  next24.forEach((timeStr, idx) => {
-    const actualIdx = startIndex + idx;
-    const timeObj = new Date(timeStr);
-    const hour12 = timeObj.toLocaleTimeString("en-IN", { hour: "numeric", hour12: true });
-    const isNow = idx === 0;
-
-    const code = hourly.weather_code[actualIdx];
-    const hour24 = timeObj.getHours();
-    const isDayHour = hour24 >= 6 && hour24 < 19 ? 1 : 0;
-    const weatherInfo = getWeatherInfo(code, isDayHour);
-
-    const tempVal = formatTemperature(hourly.temperature_2m[actualIdx]);
-    const rainChance = hourly.precipitation_probability ? hourly.precipitation_probability[actualIdx] : 0;
-
-    const card = document.createElement("div");
-    card.className = `hourly-card ${isNow ? "is-current-hour" : ""}`;
-    card.innerHTML = `
-      <div class="hourly-time">${isNow ? "Now" : hour12}</div>
-      <div class="hourly-icon">${weatherInfo.icon}</div>
-      <div class="hourly-temp">${tempVal}°</div>
-      <div class="hourly-rain ${rainChance > 20 ? "has-rain" : ""}">
-        <span class="drop">💧</span> ${rainChance}%
-      </div>
-    `;
-
-    DOM.hourlyList.appendChild(card);
-  });
-}
-
-/**
- * Render 7-Day Forecast with temperature distribution bars
- */
-function renderDailyForecast(data) {
-  if (!DOM.dailyList || !data.daily) return;
-  DOM.dailyList.innerHTML = "";
-
-  const daily = data.daily;
-  const days = daily.time;
-
-  const allMins = daily.temperature_2m_min;
-  const allMaxs = daily.temperature_2m_max;
-  const overallMin = Math.min(...allMins);
-  const overallMax = Math.max(...allMaxs);
-  const tempRange = Math.max(overallMax - overallMin, 1);
-
-  days.forEach((dateStr, i) => {
-    const dateObj = new Date(dateStr + "T00:00:00");
-    const isToday = i === 0;
-    const dayName = isToday
-      ? "Today"
-      : dateObj.toLocaleDateString("en-IN", { weekday: "short" });
-    const dateFormatted = dateObj.toLocaleDateString("en-IN", { day: "numeric", month: "short" });
-
-    const code = daily.weather_code[i];
-    const weatherInfo = getWeatherInfo(code, 1);
-
-    const minT = formatTemperature(daily.temperature_2m_min[i]);
-    const maxT = formatTemperature(daily.temperature_2m_max[i]);
-    const rainProb = daily.precipitation_probability_max ? daily.precipitation_probability_max[i] : 0;
-
-    const barLeft = ((daily.temperature_2m_min[i] - overallMin) / tempRange) * 100;
-    const barWidth = ((daily.temperature_2m_max[i] - daily.temperature_2m_min[i]) / tempRange) * 100;
-
-    const row = document.createElement("div");
-    row.className = `daily-row ${isToday ? "is-today" : ""}`;
-    row.innerHTML = `
-      <div class="daily-day-col">
-        <span class="day-name">${dayName}</span>
-        <span class="day-date">${dateFormatted}</span>
-      </div>
-
-      <div class="daily-condition-col">
-        <div class="daily-icon">${weatherInfo.icon}</div>
-        <span class="daily-condition-label">${weatherInfo.label}</span>
-      </div>
-
-      <div class="daily-rain-col">
-        ${rainProb > 15 ? `<span class="daily-rain-badge">💧 ${rainProb}%</span>` : `<span class="daily-rain-none">--</span>`}
-      </div>
-
-      <div class="daily-temps-col">
-        <span class="daily-min">${minT}°</span>
-        <div class="daily-temp-bar-wrapper">
-          <div class="daily-temp-bar" style="margin-left: ${barLeft}%; width: ${Math.max(barWidth, 8)}%;"></div>
-        </div>
-        <span class="daily-max">${maxT}°</span>
-      </div>
-    `;
-
-    DOM.dailyList.appendChild(row);
-  });
-}
-
-/**
- * Render Sunrise, Sunset and Daylight progression
- */
-function renderSunCycle(data) {
-  if (!data.daily || !data.daily.sunrise || !data.daily.sunset) return;
-
-  const sunriseIso = data.daily.sunrise[0];
-  const sunsetIso = data.daily.sunset[0];
-
-  const sunriseDate = new Date(sunriseIso);
-  const sunsetDate = new Date(sunsetIso);
-
-  const formatOpts = { hour: "numeric", minute: "2-digit", hour12: true };
-  if (DOM.sunriseTime) DOM.sunriseTime.textContent = sunriseDate.toLocaleTimeString("en-IN", formatOpts);
-  if (DOM.sunsetTime) DOM.sunsetTime.textContent = sunsetDate.toLocaleTimeString("en-IN", formatOpts);
-
-  const diffMs = sunsetDate - sunriseDate;
-  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-  const diffMins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-  if (DOM.daylightDuration) {
-    DOM.daylightDuration.textContent = `${diffHours}h ${diffMins}m of sunlight today`;
-  }
-
-  // Calculate sun progression %
-  const now = new Date();
-  let progress = 0;
-  if (now > sunriseDate && now < sunsetDate) {
-    progress = ((now - sunriseDate) / diffMs) * 100;
-  } else if (now >= sunsetDate) {
-    progress = 100;
-  }
-
-  // Calculate position along quadratic bezier curve: M 10 70 Q 150 -10 290 70
-  // Normalized t from 0 to 1
-  const t = Math.min(Math.max(progress / 100, 0), 1);
-  const p0x = 10, p0y = 70;
-  const p1x = 150, p1y = -10;
-  const p2x = 290, p2y = 70;
-
-  const sunX = (1 - t) * (1 - t) * p0x + 2 * (1 - t) * t * p1x + t * t * p2x;
-  const sunY = (1 - t) * (1 - t) * p0y + 2 * (1 - t) * t * p1y + t * t * p2y;
-
-  // Convert (300 x 80) viewBox coordinate to percentages
-  const leftPct = (sunX / 300) * 100;
-  const topPct = (sunY / 80) * 100;
-
-  if (DOM.sunArcIndicator) {
-    DOM.sunArcIndicator.style.left = `${leftPct}%`;
-    DOM.sunArcIndicator.style.top = `${topPct}%`;
+  /**
+   * Header live clock in IST
+   */
+  startLiveClock() {
+    const update = () => {
+      if (!this.ui.dom.liveClock) return;
+      const now = new Date();
+      this.ui.dom.liveClock.textContent = new Intl.DateTimeFormat('en-IN', {
+        weekday: 'short',
+        day: 'numeric',
+        month: 'short',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: true,
+        timeZone: 'Asia/Kolkata'
+      }).format(now) + ' IST';
+    };
+    update();
+    setInterval(update, 1000);
   }
 }
 
-/* ==========================================================================
-   UTILITY HELPERS
-   ========================================================================== */
-
-function formatTemperature(celsiusVal) {
-  if (celsiusVal === undefined || celsiusVal === null) return "--";
-  if (AppState.unit === "F") {
-    return Math.round((celsiusVal * 9) / 5 + 32);
-  }
-  return Math.round(celsiusVal);
-}
-
-function getWindDirectionText(deg) {
-  if (deg === undefined) return "";
-  const directions = [
-    "North (N)", "North-East (NE)", "East (E)", "South-East (SE)",
-    "South (S)", "South-West (SW)", "West (W)", "North-West (NW)"
-  ];
-  const index = Math.round((deg % 360) / 45) % 8;
-  return directions[index];
-}
+// Start application
+document.addEventListener('DOMContentLoaded', () => {
+  const app = new WeatherApp();
+  app.init();
+});
