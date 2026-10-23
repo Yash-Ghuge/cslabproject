@@ -13,7 +13,7 @@ const AppState = {
   weatherData: null,
   airQualityData: null,
   unit: "C", // 'C' or 'F'
-  activeHourlyFilter: "24h"
+  canvasEngine: null
 };
 
 // DOM Elements cache
@@ -55,10 +55,11 @@ const DOM = {
   pressureVal: document.getElementById("val-pressure"),
   rainChanceVal: document.getElementById("val-rain-chance"),
 
-  // AQI Card
+  // AQI Radial Gauge
   aqiValue: document.getElementById("val-aqi"),
   aqiBadge: document.getElementById("badge-aqi"),
-  aqiProgress: document.getElementById("aqi-progress-bar"),
+  aqiGaugeArc: document.getElementById("aqi-gauge-arc"),
+  aqiGaugeNeedle: document.getElementById("aqi-gauge-needle"),
   aqiAdvice: document.getElementById("aqi-advice"),
   pm25Val: document.getElementById("val-pm25"),
   pm10Val: document.getElementById("val-pm10"),
@@ -83,6 +84,13 @@ const DOM = {
    ========================================================================== */
 
 document.addEventListener("DOMContentLoaded", () => {
+  // Initialize dynamic atmospheric background particle engine
+  try {
+    AppState.canvasEngine = new WeatherCanvasEngine("weather-canvas");
+  } catch (err) {
+    console.warn("Canvas engine init fallback:", err);
+  }
+
   initClock();
   renderPopularChips();
   setupEventListeners();
@@ -113,7 +121,6 @@ document.addEventListener("DOMContentLoaded", () => {
 function initClock() {
   function updateTime() {
     const now = new Date();
-    // Format according to Indian time
     const options = {
       weekday: "short",
       day: "numeric",
@@ -185,12 +192,12 @@ function setupEventListeners() {
   // Hourly forecast horizontal scroll buttons
   if (DOM.btnScrollLeft && DOM.hourlyList) {
     DOM.btnScrollLeft.addEventListener("click", () => {
-      DOM.hourlyList.scrollBy({ left: -240, behavior: "smooth" });
+      DOM.hourlyList.scrollBy({ left: -260, behavior: "smooth" });
     });
   }
   if (DOM.btnScrollRight && DOM.hourlyList) {
     DOM.btnScrollRight.addEventListener("click", () => {
-      DOM.hourlyList.scrollBy({ left: 240, behavior: "smooth" });
+      DOM.hourlyList.scrollBy({ left: 260, behavior: "smooth" });
     });
   }
 
@@ -230,7 +237,6 @@ function renderPopularChips() {
     chip.innerHTML = `<span class="pin">📍</span> ${cityInfo.name}`;
 
     chip.addEventListener("click", () => {
-      // Highlight active chip
       document.querySelectorAll(".city-chip").forEach(c => c.classList.remove("active"));
       chip.classList.add("active");
       loadCityWeather(cityInfo);
@@ -341,7 +347,7 @@ function handleGeolocation() {
       DOM.geoBtn.classList.remove("spinning");
       let message = "Unable to retrieve your location.";
       if (error.code === error.PERMISSION_DENIED) {
-        message = "Location permission was denied. You can still search for any Indian city!";
+        message = "Location permission denied. You can still search for any Indian city!";
       }
       alert(message);
     },
@@ -358,7 +364,6 @@ async function loadCityWeather(city) {
   localStorage.setItem("mausam_saved_city", JSON.stringify(city));
   updateActiveChip(city.name);
 
-  // Show loading skeleton
   showLoading();
   hideError();
 
@@ -411,7 +416,7 @@ function renderAllWeather(weather, aqi) {
 }
 
 /**
- * Render main current weather card & dynamic theme atmosphere
+ * Render main current weather card & dynamic atmospheric mood
  */
 function renderHero(data) {
   const current = data.current;
@@ -419,7 +424,12 @@ function renderHero(data) {
   const weatherCode = current.weather_code;
   const weatherInfo = getWeatherInfo(weatherCode, isDay);
 
-  // Apply dynamic atmospheric background theme class to body/container
+  // Update canvas background weather engine
+  if (AppState.canvasEngine) {
+    AppState.canvasEngine.setWeatherState(weatherCode, isDay);
+  }
+
+  // Update dynamic atmospheric background theme class
   if (DOM.themeContainer) {
     DOM.themeContainer.className = `app-wrapper ${weatherInfo.themeClass}`;
   }
@@ -468,7 +478,7 @@ function renderHero(data) {
 }
 
 /**
- * Render grid metrics (humidity, wind, UV, pressure, rain probability)
+ * Render grid metrics (humidity, wind compass, UV, pressure, rain probability)
  */
 function renderWeatherMetrics(data) {
   const current = data.current;
@@ -479,7 +489,7 @@ function renderWeatherMetrics(data) {
   if (DOM.humidityDesc) {
     const h = current.relative_humidity_2m;
     if (h > 75) DOM.humidityDesc.textContent = "High (Humid / Sticky)";
-    else if (h > 45) DOM.humidityDesc.textContent = "Comfortable";
+    else if (h > 45) DOM.humidityDesc.textContent = "Comfortable level";
     else DOM.humidityDesc.textContent = "Dry atmosphere";
   }
 
@@ -513,7 +523,7 @@ function renderWeatherMetrics(data) {
     DOM.pressureVal.textContent = `${Math.round(current.surface_pressure || 1013)} hPa`;
   }
 
-  // Rain Probability (from today's daily or next few hours)
+  // Rain Probability
   const rainProb = daily.precipitation_probability_max ? daily.precipitation_probability_max[0] : 0;
   if (DOM.rainChanceVal) {
     DOM.rainChanceVal.textContent = `${Math.round(rainProb)}%`;
@@ -521,7 +531,7 @@ function renderWeatherMetrics(data) {
 }
 
 /**
- * Render Air Quality Index (AQI) card with Indian context
+ * Render Radial Air Quality Index (AQI) Gauge with Indian CPCB guidelines
  */
 function renderAirQuality(aqiData) {
   if (!aqiData || !aqiData.current) {
@@ -546,8 +556,8 @@ function renderAirQuality(aqiData) {
   if (DOM.no2Val) DOM.no2Val.textContent = `${Math.round(no2)} µg/m³`;
   if (DOM.o3Val) DOM.o3Val.textContent = `${Math.round(o3)} µg/m³`;
 
-  // Calculate AQI category based on Central Pollution Control Board (CPCB / Indian Standard) & US AQI
-  const aqiNum = Math.round(curr.us_aqi || (pm25 * 3.5)); // approximate US/Indian AQI
+  // Compute Indian CPCB / US AQI number
+  const aqiNum = Math.round(curr.us_aqi || (pm25 * 3.5));
   if (DOM.aqiValue) DOM.aqiValue.textContent = aqiNum;
 
   let category = "Good";
@@ -565,7 +575,7 @@ function renderAirQuality(aqiData) {
   } else if (aqiNum <= 150) {
     category = "Unhealthy for Sensitive (मध्यम)";
     badgeClass = "aqi-unhealthy-sensitive";
-    advice = "Children, elderly, and people with respiratory or heart conditions should limit prolonged outdoor exertion.";
+    advice = "Children, elderly, and people with respiratory conditions should limit prolonged outdoor exertion.";
   } else if (aqiNum <= 200) {
     category = "Poor (खराब)";
     badgeClass = "aqi-poor";
@@ -589,10 +599,27 @@ function renderAirQuality(aqiData) {
     DOM.aqiAdvice.textContent = advice;
   }
 
-  // Progress meter percentage (capped at 500)
-  if (DOM.aqiProgress) {
-    const percent = Math.min(Math.round((aqiNum / 400) * 100), 100);
-    DOM.aqiProgress.style.width = `${percent}%`;
+  // Update Radial Semi-Circle Gauge Arc & Needle
+  // Circumference of semi-circle arc of radius 80 = PI * 80 ≈ 251.3
+  const maxScale = 400;
+  const ratio = Math.min(Math.max(aqiNum / maxScale, 0), 1);
+  const totalLength = 251.3;
+  const dashOffset = totalLength * (1 - ratio);
+
+  if (DOM.aqiGaugeArc) {
+    DOM.aqiGaugeArc.style.strokeDashoffset = dashOffset;
+  }
+
+  // Calculate needle coordinate on semi-circle
+  // Arc center: (100, 100), Radius: 80
+  // Left angle is PI (180deg), Right angle is 0 (0deg)
+  const angle = Math.PI - ratio * Math.PI;
+  const needleX = 100 + 80 * Math.cos(angle);
+  const needleY = 100 - 80 * Math.sin(angle);
+
+  if (DOM.aqiGaugeNeedle) {
+    DOM.aqiGaugeNeedle.setAttribute("cx", needleX);
+    DOM.aqiGaugeNeedle.setAttribute("cy", needleY);
   }
 }
 
@@ -617,7 +644,6 @@ function renderHourlyForecast(data) {
     }
   }
 
-  // Slice next 24 hours
   const next24 = times.slice(startIndex, startIndex + 24);
 
   next24.forEach((timeStr, idx) => {
@@ -627,7 +653,6 @@ function renderHourlyForecast(data) {
     const isNow = idx === 0;
 
     const code = hourly.weather_code[actualIdx];
-    // Check if hour is between 6am and 7pm for day/night icon
     const hour24 = timeObj.getHours();
     const isDayHour = hour24 >= 6 && hour24 < 19 ? 1 : 0;
     const weatherInfo = getWeatherInfo(code, isDayHour);
@@ -651,7 +676,7 @@ function renderHourlyForecast(data) {
 }
 
 /**
- * Render 7-Day Forecast
+ * Render 7-Day Forecast with temperature distribution bars
  */
 function renderDailyForecast(data) {
   if (!DOM.dailyList || !data.daily) return;
@@ -660,7 +685,6 @@ function renderDailyForecast(data) {
   const daily = data.daily;
   const days = daily.time;
 
-  // Find min and max across all 7 days for proportional bar rendering
   const allMins = daily.temperature_2m_min;
   const allMaxs = daily.temperature_2m_max;
   const overallMin = Math.min(...allMins);
@@ -682,7 +706,6 @@ function renderDailyForecast(data) {
     const maxT = formatTemperature(daily.temperature_2m_max[i]);
     const rainProb = daily.precipitation_probability_max ? daily.precipitation_probability_max[i] : 0;
 
-    // Calculate bar positions
     const barLeft = ((daily.temperature_2m_min[i] - overallMin) / tempRange) * 100;
     const barWidth = ((daily.temperature_2m_max[i] - daily.temperature_2m_min[i]) / tempRange) * 100;
 
@@ -732,12 +755,11 @@ function renderSunCycle(data) {
   if (DOM.sunriseTime) DOM.sunriseTime.textContent = sunriseDate.toLocaleTimeString("en-IN", formatOpts);
   if (DOM.sunsetTime) DOM.sunsetTime.textContent = sunsetDate.toLocaleTimeString("en-IN", formatOpts);
 
-  // Daylight duration
   const diffMs = sunsetDate - sunriseDate;
   const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
   const diffMins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
   if (DOM.daylightDuration) {
-    DOM.daylightDuration.textContent = `${diffHours}h ${diffMins}m of sunlight`;
+    DOM.daylightDuration.textContent = `${diffHours}h ${diffMins}m of sunlight today`;
   }
 
   // Calculate sun progression %
@@ -749,8 +771,23 @@ function renderSunCycle(data) {
     progress = 100;
   }
 
+  // Calculate position along quadratic bezier curve: M 10 70 Q 150 -10 290 70
+  // Normalized t from 0 to 1
+  const t = Math.min(Math.max(progress / 100, 0), 1);
+  const p0x = 10, p0y = 70;
+  const p1x = 150, p1y = -10;
+  const p2x = 290, p2y = 70;
+
+  const sunX = (1 - t) * (1 - t) * p0x + 2 * (1 - t) * t * p1x + t * t * p2x;
+  const sunY = (1 - t) * (1 - t) * p0y + 2 * (1 - t) * t * p1y + t * t * p2y;
+
+  // Convert (300 x 80) viewBox coordinate to percentages
+  const leftPct = (sunX / 300) * 100;
+  const topPct = (sunY / 80) * 100;
+
   if (DOM.sunArcIndicator) {
-    DOM.sunArcIndicator.style.left = `${Math.min(Math.max(progress, 0), 100)}%`;
+    DOM.sunArcIndicator.style.left = `${leftPct}%`;
+    DOM.sunArcIndicator.style.top = `${topPct}%`;
   }
 }
 

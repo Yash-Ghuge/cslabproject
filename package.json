@@ -1,0 +1,20 @@
+{
+  "name": "mausam-weather-app",
+  "version": "1.0.0",
+  "description": "Modern Indian Weather and Air Quality web application built with Vanilla HTML, CSS, and JS",
+  "scripts": {
+    "dev": "npx -y serve -l 3000 .",
+    "start": "npx -y serve -l 3000 ."
+  },
+  "keywords": [
+    "weather",
+    "india",
+    "open-meteo",
+    "aqi",
+    "html5",
+    "css3",
+    "javascript"
+  ],
+  "author": "Yash Ghuge",
+  "license": "MIT"
+}
