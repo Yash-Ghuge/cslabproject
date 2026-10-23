@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  
+  <title>Mausam (मौसम) • Real-Time Weather & Air Quality in India</title>
+  <meta name="description" content="Accurate, real-time hyper-local weather forecast and Air Quality Index (AQI) for Pune, Mumbai, Delhi, Bengaluru, and Indian cities. Powered by Open-Meteo.">
+  <meta name="theme-color" content="#0B111E">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+  <!-- CSS Stylesheets -->
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/responsive.css">
+
+  <!-- Favicon SVG -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⛅</text></svg>">
+</head>
+<body>
+
+  <!-- Ambient Glow Background Effects -->
+  <div class="ambient-glow-1"></div>
+  <div class="ambient-glow-2"></div>
+
+  <!-- Main Application Wrapper -->
+  <div id="theme-container" class="app-wrapper theme-sunny">
+
+    <!-- Top Navigation Header -->
+    <header class="app-header">
+      <div class="container header-content">
+        <!-- Logo / Brand -->
+        <div class="brand">
+          <div class="brand-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+              <path d="M6.5 19C4.01 19 2 16.99 2 14.5C2 12.16 3.79 10.24 6.1 10.03C6.73 6.61 9.71 4 13.3 4C17.26 4 20.48 7.08 20.69 11.01C22.03 11.75 23 13.25 23 15C23 17.21 21.21 19 19 19H6.5Z"/>
+            </svg>
+          </div>
+          <div>
+            <div class="brand-title">
+              Mausam <span class="brand-hindi">मौसम</span>
+            </div>
+            <div class="brand-sub">Indian Weather & AQI Intelligence</div>
+          </div>
+        </div>
+
+        <!-- Clock & Controls -->
+        <div class="header-actions">
+          <div class="clock-badge" id="clock-container" title="Indian Standard Time (IST)">
+            <span class="clock-pulse"></span>
+            <span id="live-clock">-- : -- IST</span>
+          </div>
+
+          <button id="btn-unit-toggle" class="btn-icon" type="button" aria-label="Toggle Temperature Unit">
+            <span id="unit-label">°C</span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+      <div class="container">
+
+        <!-- Search Bar Section -->
+        <section class="search-section" aria-label="City Search">
+          <div class="search-container">
+            <div class="search-wrapper" id="search-wrapper">
+              <div class="search-input-box">
+                <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="11" cy="11" r="8"></circle>
+                  <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                </svg>
+                <input 
+                  type="text" 
+                  id="search-input" 
+                  class="search-input" 
+                  placeholder="Search Indian city or town (e.g., Pune, Mumbai, Delhi, Bengaluru)..."
+                  autocomplete="off"
+                  spellcheck="false"
+                >
+              </div>
+
+              <!-- Search Autocomplete Dropdown -->
+              <div id="search-dropdown" class="search-dropdown hidden"></div>
+            </div>
+
+            <!-- Current Location Button -->
+            <button id="btn-geolocation" class="btn-geo" type="button" title="Detect Current GPS Location">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8z"></path>
+                <circle cx="12" cy="12" r="3"></circle>
+              </svg>
+              <span>Current Location</span>
+            </button>
+          </div>
+        </section>
+
+        <!-- Popular Indian Cities Quick Chips -->
+        <nav class="chips-wrapper" aria-label="Popular Indian Cities">
+          <div class="chips-container" id="popular-chips">
+            <!-- Dynamically populated from js/cities.js -->
+          </div>
+        </nav>
+
+        <!-- Network / Error Alert Banner -->
+        <div id="error-state" class="error-banner hidden" role="alert">
+          <div class="error-info">
+            <span class="error-icon">⚠️</span>
+            <span id="error-message" class="error-msg">Failed to retrieve weather data.</span>
+          </div>
+          <button id="retry-btn" class="btn-retry" type="button">Retry</button>
+        </div>
+
+        <!-- Dashboard Dual Column Layout -->
+        <div class="dashboard-grid">
+
+          <!-- Left Column: Hero Weather & Hourly Forecast -->
+          <div class="grid-col-left">
+
+            <!-- Hero Current Weather Card -->
+            <article class="glass-card hero-card" id="hero-card">
+              <div class="hero-top">
+                <div class="hero-location-info">
+                  <h1 class="hero-city-title" id="city-name">Pune</h1>
+                  <div class="hero-state-country" id="state-country">Maharashtra, India 🇮🇳</div>
+                  <div class="hero-date" id="current-date">Loading date...</div>
+                </div>
+
+                <div class="hero-condition-badge-wrap">
+                  <div class="condition-pill" id="weather-desc">Partly Cloudy</div>
+                  <div class="condition-hindi" id="weather-hindi-desc">मौसम विवरण</div>
+                </div>
+              </div>
+
+              <!-- Hero Temperature and Animated Weather SVG -->
+              <div class="hero-body">
+                <div class="hero-temp-group">
+                  <span class="temp-large" id="current-temp">--</span>
+                  <span class="temp-unit-sup" id="temp-unit-badge">°C</span>
+                </div>
+
+                <div class="hero-icon-wrap" id="weather-icon-large">
+                  <!-- SVG injected via js/icons.js -->
+                </div>
+              </div>
+
+              <!-- Hero Meta Pills (Feels Like & High/Low) -->
+              <div class="hero-meta-row">
+                <div class="meta-pill">
+                  <span>Feels like:</span>
+                  <strong id="feels-like-temp">--°C</strong>
+                </div>
+                <div class="meta-pill" id="temp-high-low">
+                  <span>H: --°</span> • <span>L: --°</span>
+                </div>
+              </div>
+            </article>
+
+            <!-- Metrics Grid: Humidity, Wind, UV Index, Pressure -->
+            <section class="metrics-grid" aria-label="Key Weather Metrics">
+              <!-- Humidity -->
+              <div class="glass-card metric-card">
+                <div class="metric-header">
+                  <span>HUMIDITY</span>
+                  <svg class="metric-icon" viewBox="0 0 24 24" fill="none" stroke-width="2">
+                    <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"></path>
+                  </svg>
+                </div>
+                <div class="metric-value-box">
+                  <span class="metric-value" id="val-humidity">--%</span>
+                </div>
+                <div class="metric-sub" id="desc-humidity">Relative humidity</div>
+              </div>
+
+              <!-- Wind -->
+              <div class="glass-card metric-card">
+                <div class="metric-header">
+                  <span>WIND</span>
+                  <div class="wind-pointer-circle" id="wind-pointer" title="Wind Direction">
+                    <svg viewBox="0 0 24 24">
+                      <polygon points="12,2 19,21 12,17 5,21"></polygon>
+                    </svg>
+                  </div>
+                </div>
+                <div class="metric-value-box">
+                  <span class="metric-value" id="val-wind">-- km/h</span>
+                </div>
+                <div class="metric-sub" id="desc-wind">Moderate breeze</div>
+              </div>
+
+              <!-- UV Index -->
+              <div class="glass-card metric-card">
+                <div class="metric-header">
+                  <span>UV INDEX</span>
+                  <svg class="metric-icon" viewBox="0 0 24 24" fill="none" stroke-width="2">
+                    <circle cx="12" cy="12" r="5"></circle>
+                    <line x1="12" y1="1" x2="12" y2="3"></line>
+                    <line x1="12" y1="21" x2="12" y2="23"></line>
+                  </svg>
+                </div>
+                <div class="metric-value-box">
+                  <span class="metric-value" id="val-uv">--</span>
+                </div>
+                <div class="metric-sub" id="desc-uv">Sun protection</div>
+              </div>
+
+              <!-- Rain Probability -->
+              <div class="glass-card metric-card">
+                <div class="metric-header">
+                  <span>RAIN CHANCE</span>
+                  <svg class="metric-icon" viewBox="0 0 24 24" fill="none" stroke-width="2">
+                    <path d="M20 16.2A4.5 4.5 0 0 0 17.5 8h-1.8A7 7 0 1 0 4 14.9"></path>
+                    <path d="M16 14v6"></path>
+                    <path d="M8 14v6"></path>
+                    <path d="M12 16v6"></path>
+                  </svg>
+                </div>
+                <div class="metric-value-box">
+                  <span class="metric-value" id="val-rain-chance">--%</span>
+                </div>
+                <div class="metric-sub">Today's precipitation</div>
+              </div>
+            </section>
+
+            <!-- Hourly Forecast (24-Hour Carousel) -->
+            <section class="glass-card hourly-section" aria-label="Hourly Forecast">
+              <div class="section-header-row">
+                <h2 class="card-title">
+                  <svg viewBox="0 0 24 24" fill="none" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <polyline points="12 6 12 12 16 14"></polyline>
+                  </svg>
+                  24-Hour Forecast
+                </h2>
+
+                <div class="carousel-controls">
+                  <button id="btn-scroll-left" class="btn-arrow" type="button" aria-label="Scroll hourly left">
+                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5">
+                      <polyline points="15 18 9 12 15 6"></polyline>
+                    </svg>
+                  </button>
+                  <button id="btn-scroll-right" class="btn-arrow" type="button" aria-label="Scroll hourly right">
+                    <svg viewBox="0 0 24 24" fill="none" stroke-width="2.5">
+                      <polyline points="9 18 15 12 9 6"></polyline>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              <div class="hourly-scroll-list" id="hourly-forecast-list">
+                <!-- Dynamically populated via js/app.js -->
+              </div>
+            </section>
+
+          </div>
+
+          <!-- Right Column: Air Quality (AQI), 7-Day Forecast & Sun Cycle -->
+          <div class="grid-col-right">
+
+            <!-- Air Quality Index (AQI) Card -->
+            <article class="glass-card aqi-card" aria-label="Air Quality Index">
+              <div class="aqi-card-header">
+                <h2 class="card-title">
+                  <svg viewBox="0 0 24 24" fill="none" stroke-width="2">
+                    <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"></path>
+                  </svg>
+                  Air Quality Index (AQI)
+                </h2>
+                <span class="aqi-badge aqi-good" id="badge-aqi">Good</span>
+              </div>
+
+              <div class="aqi-gauge-section">
+                <span class="aqi-num" id="val-aqi">--</span>
+                <span class="metric-sub">CPCB / US Standard</span>
+              </div>
+
+              <!-- Visual Meter Bar -->
+              <div class="aqi-meter-track" title="AQI Scale">
+                <div class="aqi-meter-fill" id="aqi-progress-bar"></div>
+              </div>
+
+              <!-- Major Pollutants Breakdown -->
+              <div class="pollutants-grid">
+                <div class="pollutant-box">
+                  <div class="pollutant-name">PM2.5</div>
+                  <div class="pollutant-val" id="val-pm25">--</div>
+                </div>
+                <div class="pollutant-box">
+                  <div class="pollutant-name">PM10</div>
+                  <div class="pollutant-val" id="val-pm10">--</div>
+                </div>
+                <div class="pollutant-box">
+                  <div class="pollutant-name">NO₂</div>
+                  <div class="pollutant-val" id="val-no2">--</div>
+                </div>
+                <div class="pollutant-box">
+                  <div class="pollutant-name">O₃ (Ozone)</div>
+                  <div class="pollutant-val" id="val-o3">--</div>
+                </div>
+              </div>
+
+              <!-- Tailored Indian Health Advisory -->
+              <div class="aqi-advice-box">
+                <span class="aqi-advice-icon">🌿</span>
+                <span class="aqi-advice-text" id="aqi-advice">Loading air quality guidance...</span>
+              </div>
+            </article>
+
+            <!-- 7-Day Forecast -->
+            <section class="glass-card" aria-label="7-Day Weather Forecast">
+              <div class="section-header-row">
+                <h2 class="card-title">
+                  <svg viewBox="0 0 24 24" fill="none" stroke-width="2">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                    <line x1="16" y1="2" x2="16" y2="6"></line>
+                    <line x1="8" y1="2" x2="8" y2="6"></line>
+                    <line x1="3" y1="10" x2="21" y2="10"></line>
+                  </svg>
+                  7-Day Outlook
+                </h2>
+                <span class="metric-sub" id="val-pressure">-- hPa</span>
+              </div>
+
+              <div class="daily-forecast-container" id="daily-forecast-list">
+                <!-- Dynamically populated via js/app.js -->
+              </div>
+            </section>
+
+            <!-- Sun & Daylight Progression -->
+            <section class="glass-card sun-card" aria-label="Sun and Daylight Cycle">
+              <h2 class="card-title">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="2">
+                  <circle cx="12" cy="12" r="5"></circle>
+                  <line x1="12" y1="1" x2="12" y2="3"></line>
+                  <line x1="12" y1="21" x2="12" y2="23"></line>
+                  <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                  <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                  <line x1="1" y1="12" x2="3" y2="12"></line>
+                  <line x1="21" y1="12" x2="23" y2="12"></line>
+                </svg>
+                Sun & Daylight
+              </h2>
+
+              <div class="sun-arc-container">
+                <div class="sun-arc-track"></div>
+                <div class="sun-arc-node" id="sun-arc-indicator" title="Current Sun Position"></div>
+              </div>
+
+              <div class="sun-times-row">
+                <div class="sun-time-box">
+                  <span class="sun-icon">🌅</span>
+                  <div>
+                    <div class="sun-label">Sunrise</div>
+                    <div class="sun-value" id="val-sunrise">-- : --</div>
+                  </div>
+                </div>
+
+                <div class="sun-time-box">
+                  <span class="sun-icon">🌇</span>
+                  <div>
+                    <div class="sun-label">Sunset</div>
+                    <div class="sun-value" id="val-sunset">-- : --</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="daylight-info" id="val-daylight">Calculating daylight hours...</div>
+            </section>
+
+          </div>
+
+        </div>
+
+      </div>
+    </main>
+
+    <!-- App Footer -->
+    <footer class="app-footer">
+      <div class="container footer-content">
+        <div>
+          Designed for <span class="footer-highlight">Indian Cities & Towns</span> • Powered by Open-Meteo & Open Data
+        </div>
+        <div class="footer-links">
+          <span>Pure HTML • CSS • JavaScript</span>
+          <span>•</span>
+          <span>Mobile-First Responsive</span>
+        </div>
+      </div>
+    </footer>
+
+    <!-- Loading Spinner Overlay -->
+    <div id="loading-state" class="loading-overlay hidden" aria-live="polite">
+      <div class="loading-spinner"></div>
+      <div class="loading-text">Fetching live weather data...</div>
+    </div>
+
+  </div>
+
+  <!-- JavaScript Modules -->
+  <script src="js/cities.js"></script>
+  <script src="js/icons.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

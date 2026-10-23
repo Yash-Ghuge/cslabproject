@@ -1,0 +1,363 @@
+/* ==========================================================================
+   MAUSAM (मौसम) - CORE STYLES & DESIGN TOKENS
+   Modern Indian Weather Intelligence
+   ========================================================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+
+:root {
+  /* Color Tokens */
+  --font-primary: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-display: 'Outfit', sans-serif;
+
+  /* Surfaces */
+  --bg-base: #0B111E;
+  --bg-gradient: radial-gradient(circle at 50% 0%, #1e293b 0%, #0b111e 75%);
+  --surface-glass: rgba(255, 255, 255, 0.05);
+  --surface-glass-hover: rgba(255, 255, 255, 0.08);
+  --surface-glass-active: rgba(255, 255, 255, 0.12);
+  --surface-card: rgba(18, 26, 43, 0.75);
+  --border-glass: rgba(255, 255, 255, 0.1);
+  --border-glass-bright: rgba(255, 255, 255, 0.2);
+
+  /* Typography */
+  --text-main: #F8FAFC;
+  --text-muted: #94A3B8;
+  --text-dim: #64748B;
+  --accent-saffron: #FF9933; /* Indian Tiranga saffron */
+  --accent-blue: #38BDF8;
+  --accent-emerald: #10B981;
+  --accent-amber: #F59E0B;
+  --accent-rose: #F43F5E;
+  --accent-purple: #A855F7;
+
+  /* Elevation & Shadows */
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.5);
+  --shadow-glow: 0 0 30px rgba(56, 189, 248, 0.15);
+
+  /* Radius */
+  --radius-sm: 10px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
+  --radius-full: 9999px;
+
+  /* Transitions */
+  --transition-fast: 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ==========================================================================
+   DYNAMIC ATMOSPHERIC THEMES
+   ========================================================================== */
+
+/* Sunny / Clear Day */
+.app-wrapper.theme-sunny {
+  background: radial-gradient(circle at 80% 10%, #fb923c26 0%, transparent 50%),
+              radial-gradient(circle at 20% 0%, #38bdf82a 0%, transparent 60%),
+              #070f1e;
+}
+
+/* Clear Night / Twilight */
+.app-wrapper.theme-night {
+  background: radial-gradient(circle at 75% 15%, #6366f12a 0%, transparent 55%),
+              radial-gradient(circle at 20% 0%, #1e1b4b3b 0%, transparent 70%),
+              #050814;
+}
+
+/* Cloudy / Overcast */
+.app-wrapper.theme-cloudy,
+.app-wrapper.theme-overcast {
+  background: radial-gradient(circle at 50% 0%, #47556930 0%, transparent 60%),
+              radial-gradient(circle at 80% 20%, #33415525 0%, transparent 50%),
+              #090d16;
+}
+
+/* Rainy / Monsoon */
+.app-wrapper.theme-rainy {
+  background: radial-gradient(circle at 60% 0%, #0284c728 0%, transparent 60%),
+              radial-gradient(circle at 10% 20%, #0f766e25 0%, transparent 50%),
+              #050b14;
+}
+
+/* Thunderstorm */
+.app-wrapper.theme-storm {
+  background: radial-gradient(circle at 50% 0%, #8b5cf630 0%, transparent 50%),
+              radial-gradient(circle at 80% 20%, #eab30815 0%, transparent 40%),
+              #070810;
+}
+
+/* Fog / Mist */
+.app-wrapper.theme-fog {
+  background: radial-gradient(circle at 50% 0%, #64748b30 0%, transparent 60%),
+              #080e18;
+}
+
+/* ==========================================================================
+   BASE & RESET
+   ========================================================================== */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html, body {
+  width: 100%;
+  min-height: 100%;
+  background-color: var(--bg-base);
+  color: var(--text-main);
+  font-family: var(--font-primary);
+  font-size: 16px;
+  line-height: 1.5;
+  overflow-x: hidden;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  background: none;
+  outline: none;
+}
+
+input {
+  font-family: inherit;
+  border: none;
+  outline: none;
+  background: none;
+  color: inherit;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* App Wrapper */
+.app-wrapper {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  transition: background var(--transition-slow);
+  position: relative;
+}
+
+/* Background Ambient Glow Orbs */
+.ambient-glow-1,
+.ambient-glow-2 {
+  position: fixed;
+  border-radius: 50%;
+  filter: blur(120px);
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.45;
+}
+
+.ambient-glow-1 {
+  width: 450px;
+  height: 450px;
+  top: -120px;
+  right: -80px;
+  background: radial-gradient(circle, rgba(56, 189, 248, 0.35) 0%, transparent 70%);
+}
+
+.ambient-glow-2 {
+  width: 500px;
+  height: 500px;
+  bottom: 10%;
+  left: -150px;
+  background: radial-gradient(circle, rgba(255, 153, 51, 0.22) 0%, transparent 70%);
+}
+
+/* Page Container */
+.container {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1.25rem;
+  position: relative;
+  z-index: 1;
+}
+
+/* Header */
+.app-header {
+  padding: 1.25rem 0 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: rgba(11, 17, 30, 0.7);
+}
+
+.header-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+/* Brand Identity */
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.brand-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #FF9933 0%, #F59E0B 50%, #38BDF8 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 14px rgba(255, 153, 51, 0.3);
+  flex-shrink: 0;
+}
+
+.brand-icon svg {
+  width: 26px;
+  height: 26px;
+  fill: #FFFFFF;
+}
+
+.brand-title {
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+}
+
+.brand-hindi {
+  font-size: 0.85rem;
+  color: var(--accent-saffron);
+  font-weight: 500;
+  background: rgba(255, 153, 51, 0.12);
+  padding: 0.1rem 0.45rem;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 153, 51, 0.25);
+}
+
+.brand-sub {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+/* Header Utilities */
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.clock-badge {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  background: var(--surface-glass);
+  border: 1px solid var(--border-glass);
+  padding: 0.4rem 0.85rem;
+  border-radius: var(--radius-full);
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  white-space: nowrap;
+}
+
+.clock-pulse {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: var(--accent-emerald);
+  box-shadow: 0 0 8px var(--accent-emerald);
+  animation: pulseDot 2s infinite;
+}
+
+@keyframes pulseDot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.85); }
+}
+
+.btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  background: var(--surface-glass);
+  border: 1px solid var(--border-glass);
+  color: var(--text-main);
+  padding: 0.45rem 0.85rem;
+  border-radius: var(--radius-full);
+  font-size: 0.85rem;
+  font-weight: 500;
+  transition: all var(--transition-fast);
+  cursor: pointer;
+}
+
+.btn-icon:hover {
+  background: var(--surface-glass-hover);
+  border-color: var(--border-glass-bright);
+  transform: translateY(-1px);
+}
+
+.btn-icon:active {
+  transform: translateY(0);
+}
+
+.btn-icon svg {
+  width: 17px;
+  height: 17px;
+  stroke: currentColor;
+}
+
+/* Main Dashboard Layout */
+.main-content {
+  flex: 1;
+  padding: 1.5rem 0 3rem;
+}
+
+/* App Footer */
+.app-footer {
+  padding: 2rem 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  text-align: center;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.footer-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.footer-highlight {
+  color: var(--accent-saffron);
+  font-weight: 500;
+}
+
+.footer-links {
+  display: flex;
+  gap: 1.5rem;
+  margin-top: 0.25rem;
+}
+
+.footer-links a:hover {
+  color: var(--accent-blue);
+  text-decoration: underline;
+}
